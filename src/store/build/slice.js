@@ -2,6 +2,12 @@ import { createSlice, current } from "@reduxjs/toolkit";
 
 const initialState = {
   selected: null,
+  pov: {
+    on: false,
+    point: { x: 300, y: 350 },
+    // shadows: [],
+    // fence: [],
+  },
   set: {
     //eu
     temple: 4,
@@ -24,13 +30,58 @@ const initialState = {
       id: 0,
       single: false,
       mirror: false,
-      center: { x: 15, y: 15 },
-      dimentions: { length: 30, width: 30, radius: 15 },
+      center: { x: 12.5, y: 12.5 },
+      dimentions: { length: 25, width: 25, radius: 0 },
       points: [
         { x: 0, y: 0 },
-        { x: 0, y: 30 },
-        { x: 30, y: 30 },
-        { x: 30, y: 0 },
+        { x: 0, y: 25 },
+        { x: 25, y: 25 },
+        { x: 25, y: 0 },
+      ],
+    },
+    maya: {
+      type: "maya",
+      rotate: { fix: true, angle: 0 },
+      id: 0,
+      single: false,
+      mirror: false,
+      center: { x: 12.5, y: 12.5 },
+      dimentions: { length: 25, width: 25, radius: 0 },
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 25 },
+        { x: 25, y: 25 },
+        { x: 25, y: 0 },
+      ],
+    },
+    snake: {
+      type: "snake",
+      rotate: { fix: false, angle: 0 },
+      id: 0,
+      single: false,
+      mirror: false,
+      center: { x: 6.25, y: 25 },
+      dimentions: { length: 50, width: 12.5, radius: 0 },
+      points: [
+        { x: 0, y: 0 },
+        { x: 0, y: 50 },
+        { x: 12.5, y: 50 },
+        { x: 12.5, y: 0 },
+      ],
+    },
+    giantbrick: {
+      type: "giantbrick",
+      rotate: { fix: false, angle: 0 },
+      id: 0,
+      single: false,
+      mirror: false,
+      center: { x: 25, y: 12.5 },
+      dimentions: { length: 50, width: 25, radius: 0 },
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 0 },
+        { x: 50, y: 25 },
+        { x: 0, y: 25 },
       ],
     },
     can: {
@@ -41,7 +92,7 @@ const initialState = {
       mirror: false,
       center: { x: 15, y: 15 },
       dimentions: { length: 30, width: 30, radius: 15 },
-      points: [],
+      points: [{ x: 0, y: 0 }],
     },
     tree: {
       type: "tree",
@@ -51,7 +102,7 @@ const initialState = {
       mirror: false,
       center: { x: 12.5, y: 12.5 },
       dimentions: { length: 25, width: 25, radius: 12.5 },
-      points: [],
+      points: [{ x: 0, y: 0 }],
     },
     dorito: {
       type: "dorito",
@@ -60,7 +111,7 @@ const initialState = {
       single: false,
       mirror: false,
       center: { x: 9.52633, y: 16.5 },
-      dimentions: { length: 33, width: 33, radius: 0 },
+      dimentions: { length: 33, width: 33, radius: 9.52633 },
       points: [
         { x: 0, y: 0 },
         { x: 0, y: 33 },
@@ -74,7 +125,7 @@ const initialState = {
       single: false,
       mirror: false,
       center: { x: 7.21666, y: 12.5 },
-      dimentions: { length: 25, width: 25, radius: 0 },
+      dimentions: { length: 25, width: 25, radius: 7.21666 },
       points: [
         { x: 0, y: 0 },
         { x: 0, y: 25 },
@@ -104,6 +155,10 @@ export const buildSlice = createSlice({
       ];
       state.selected = genId;
     },
+    deleteBunker: (state, action) => {
+      state.bunkers = state.bunkers.filter((b) => b.id !== action.payload);
+      state.selected = null;
+    },
     moveBunker: (state, action) => {
       state.bunkers = state.bunkers.map((b) => {
         if (action.payload.id === b.id) {
@@ -123,30 +178,45 @@ export const buildSlice = createSlice({
       });
     },
     rotateBunker: (state, action) => {
-      // state.bunkers = state.bunkers.map((b) => {
-      //   if (action.payload.id === b.id) {
-      //     return {
-      //       ...b,
-      //       points: b.points.map((p) => {
-      //         return { x: p.x + action.payload.x, y: p.y + action.payload.y };
-      //       }),
-      //       center: {
-      //         x: b.center.x + action.payload.x,
-      //         y: b.center.y + action.payload.y,
-      //       },
-      //     };
-      //   } else {
-      //     return b;
-      //   }
-      // });
+      state.bunkers = state.bunkers.map((b) => {
+        if (action.payload.id === b.id) {
+          return {
+            ...b,
+            points: action.payload.points,
+            rotate: { ...b.rotate, angle: action.payload.angle },
+          };
+        } else {
+          return b;
+        }
+      });
     },
     setCurrentBunker: (state, action) => {
       state.selected = action.payload;
     },
+    setPOVonoff: (state, action) => {
+      state.pov.on = !state.pov.on;
+    },
+    movePOV: (state, action) => {
+      state.pov.point = {
+        x: state.pov.point.x + action.payload.x,
+        y: state.pov.point.y + action.payload.y,
+      };
+    },
+    resetPOV: (state, action) => {
+      state.pov.point = { x: 300, y: 350 };
+    },
   },
 });
 
-export const { rotateBunker, moveBunker, addBunker, setCurrentBunker } =
-  buildSlice.actions;
+export const {
+  rotateBunker,
+  moveBunker,
+  addBunker,
+  deleteBunker,
+  setCurrentBunker,
+  setPOVonoff,
+  movePOV,
+  resetPOV,
+} = buildSlice.actions;
 
 export default buildSlice.reducer;
