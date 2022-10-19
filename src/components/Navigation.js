@@ -3,10 +3,11 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectToken } from "../store/user/selectors";
 import { logOut } from "../store/user/slice";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export const Navigation = () => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const dispatch = useDispatch();
 
@@ -26,13 +27,17 @@ export const Navigation = () => {
         <span />
       </Hamburger>
       <Menu open={open}>
-        <MenuLink to="/empty1">Empty 1</MenuLink>
-        <MenuLink to="/empty2">Empty 2</MenuLink>
-        {token ? (
+        <MenuLink to="/">Home</MenuLink>
+        <MenuLink to="/browse">Browse</MenuLink>
+        <MenuLink to="/build">Builder</MenuLink>
+        <MenuLink to="/plan">Planner</MenuLink>
+        <MenuLink to="/view">Viewer</MenuLink>
+        {/* <span onClick={() => navigate("/build")}>blah</span> */}
+        {/* {token ? (
           <button onClick={() => dispatch(logOut())}>Logout</button>
         ) : (
           <MenuLink to="/login">Login</MenuLink>
-        )}
+        )} */}
       </Menu>
     </Nav>
   );

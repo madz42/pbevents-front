@@ -1,9 +1,59 @@
-import { moveBunker, rotateBunker } from "./slice";
+import axios from "axios";
+import { apiUrl } from "../../config/constants";
+import { moveBunker, rotateBunker, loadBunkers } from "./slice";
+import { showMessageWithTimeout } from "../appState/thunks";
+
+export const saveFieldThunk = (bunkers, name, total) => {
+  return async (dispatch, getState) => {
+    try {
+      await axios.post(
+        `${apiUrl}/field/add`,
+        {
+          data: bunkers,
+          name,
+          total,
+        },
+        {}
+      );
+      dispatch(showMessageWithTimeout("success", false, "Field saved!", 3000));
+    } catch (error) {
+      if (error.response) {
+        console.log(error.response.message);
+        dispatch(
+          showMessageWithTimeout("danger", false, error.response.message, 5000)
+        );
+      } else {
+        console.log(error);
+        dispatch(showMessageWithTimeout("danger", false, error.message, 5000));
+      }
+    }
+  };
+};
+
+export const loadFieldThunk = (id) => {
+  return async (dispatch, getState) => {
+    try {
+      const incoming = await axios.get(`${apiUrl}/field/id/${id}`);
+      dispatch(loadBunkers(incoming.data.data));
+      dispatch(showMessageWithTimeout("success", false, "Field loaded!", 3000));
+    } catch (error) {
+      if (error.response) {
+        console.log(error.response.message);
+        dispatch(
+          showMessageWithTimeout("danger", false, error.response.message, 5000)
+        );
+      } else {
+        console.log(error);
+        dispatch(showMessageWithTimeout("danger", false, error.message, 5000));
+      }
+    }
+  };
+};
 
 export const moveBunkerThunk = (direction, id) => {
   return async (dispatch, getState) => {
     //dispatch(moveBunker());
-    console.log(direction, id);
+    // console.log(direction, id);
     switch (direction) {
       case "left":
         dispatch(moveBunker({ id, x: -25, y: 0 }));

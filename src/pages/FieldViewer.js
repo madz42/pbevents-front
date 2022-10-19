@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   selCurrentBunker,
   selectBunkers,
@@ -14,7 +14,6 @@ import {
   setPOVonoff,
   movePOV,
   resetPOV,
-  resetField,
 } from "../store/build/slice";
 import {
   loadFieldThunk,
@@ -24,43 +23,33 @@ import {
   rotateBunkerThunk,
   saveFieldThunk,
 } from "../store/build/thunks";
+import { selectViewField } from "../store/view/selectors";
+import { viewFieldThunk } from "../store/view/thunks";
 
-export const FieldBuilder = () => {
-  const bunkers = useSelector(selectBunkers);
+export const FieldViewer = () => {
+  // const route_params = useParams();
+  // console.log("ROUTE:", route_params.id);
+  const bunkers = useSelector(selectViewField);
   const bunkersSet = useSelector(selectSet);
   const currentBunker = useSelector(selCurrentBunker);
   const dispatch = useDispatch();
   const pov = useSelector(selectPOV);
   const POV_step = 20;
   const route_params = useParams();
-  const navigate = useNavigate();
-  const [giveName, setGiveName] = useState("");
-  const [zoom, setZoom] = useState({ mag: 1, x: 0, y: -375 });
 
   useEffect(() => {
     if (route_params.id !== undefined) {
-      dispatch(loadFieldThunk(route_params.id));
+      dispatch(viewFieldThunk(route_params.id));
     }
   }, [dispatch, route_params]);
 
   const handleSave = () => {
-    dispatch(saveFieldThunk(bunkers, giveName, bunkers.length));
+    dispatch(saveFieldThunk(bunkers, "somename"));
   };
 
   const handleLoad = () => {
     //hardcoded id
     dispatch(loadFieldThunk(1));
-  };
-
-  const handleNew = () => {
-    dispatch(resetField());
-  };
-
-  const allowSave = () => {
-    if (bunkers.length > 0 && giveName.length >= 8) {
-      return true;
-    }
-    return false;
   };
 
   const drawPOV = () => {
@@ -539,141 +528,6 @@ export const FieldBuilder = () => {
   return (
     <div style={{ display: "flex", margin: "2em" }}>
       <div style={{ width: "25%" }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <button
-            style={{ width: "5em", height: "5em" }}
-            disabled={!currentBunker}
-            onClick={() => dispatch(moveBunkerThunk("up", currentBunker))}
-          >
-            UP
-          </button>
-          <div>
-            <button
-              style={{ width: "5em", height: "5em" }}
-              disabled={!currentBunker}
-              onClick={() => dispatch(moveBunkerThunk("left", currentBunker))}
-            >
-              LEFT
-            </button>
-            <button
-              style={{ width: "5em", height: "5em" }}
-              disabled={!currentBunker}
-              onClick={() => dispatch(rotateBunkerThunk(currentBunker))}
-            >
-              Rotate
-            </button>
-            <button
-              style={{ width: "5em", height: "5em" }}
-              disabled={!currentBunker}
-              onClick={() => dispatch(moveBunkerThunk("right", currentBunker))}
-            >
-              RIGHT
-            </button>
-          </div>
-          <button
-            style={{ width: "5em", height: "5em" }}
-            disabled={!currentBunker}
-            onClick={() => dispatch(moveBunkerThunk("down", currentBunker))}
-          >
-            DOWN
-          </button>
-        </div>
-        <div>
-          <button
-            disabled={currentBunker ? false : true}
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
-          {`  Total: ${bunkers.length}`}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <br />
-          <div>
-            {`${countBunkers("temple")}/${bunkersSet.temple} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("temple"))}
-            >
-              Temple
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("maya")}/${bunkersSet.maya} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("maya"))}
-            >
-              Maya
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("can")}/${bunkersSet.can} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("can"))}
-            >
-              Can
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("dorito")}/${bunkersSet.dorito} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("dorito"))}
-            >
-              Dorito
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("smalldorito")}/${bunkersSet.smalldorito} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("smalldorito"))}
-            >
-              Sm Dorito
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("tree")}/${bunkersSet.tree} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("tree"))}
-            >
-              Tree
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("snake")}/${bunkersSet.snake} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("snake"))}
-            >
-              Snake
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("giantbrick")}/${bunkersSet.giantbrick} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("giantbrick"))}
-            >
-              Giant Brick
-            </button>
-          </div>
-        </div>
         <button onClick={() => dispatch(setPOVonoff())}>POV</button>
         <div
           style={{
@@ -754,56 +608,20 @@ export const FieldBuilder = () => {
         </div>
         <div>
           {`Zoom: `}
-          <button onClick={() => setZoom({ mag: 2, x: 0, y: -375 })}>
-            x0.5
-          </button>
-          <button onClick={() => setZoom({ mag: 1, x: 0, y: -375 })}>
-            x1.0
-          </button>
-          <button onClick={() => setZoom({ mag: 0.5, x: 0, y: -375 })}>
-            x2.0
-          </button>
+          <button>x0.5</button>
+          <button>x1.0</button>
+          <button>x2.0</button>
           {` - `}
-          <button
-            onClick={() =>
-              setZoom({ mag: zoom.mag, x: zoom.x - 150, y: zoom.y })
-            }
-          >
-            {"<"}
-          </button>
-          <button
-            onClick={() => setZoom({ mag: zoom.mag, x: 0, y: zoom.y - 187.5 })}
-          >
-            {"^"}
-          </button>
-          <button
-            onClick={() => setZoom({ mag: zoom.mag, x: 0, y: zoom.y + 187.5 })}
-          >
-            {"v"}
-          </button>
-          <button
-            onClick={() =>
-              setZoom({ mag: zoom.mag, x: zoom.x + 150, y: zoom.y })
-            }
-          >
-            {">"}
-          </button>
+          <button>^</button>
+          <button>v</button>
         </div>
         <div>
-          <button onClick={handleNew}>NEW FIELD</button>
-          <input type="text" onChange={(e) => setGiveName(e.target.value)} />
-          <button onClick={handleSave} disabled={!allowSave()}>
-            SAVE
-          </button>
+          <button onClick={handleLoad}>LOAD</button>
+          <button onClick={handleSave}>SAVE</button>
         </div>
       </div>
       <div style={{ width: "75%" }}>
-        <svg
-          viewBox={`${zoom.x} ${zoom.y} ${600 * zoom.mag} ${750 * zoom.mag}`}
-          width={600}
-          height={750}
-          version="1.1"
-        >
+        <svg viewBox="0 -375 600 750" width={600} height={750} version="1.1">
           {/* <svg
           viewBox="-200 -750 1200 1500"
           width={600}

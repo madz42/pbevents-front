@@ -140,20 +140,28 @@ export const buildSlice = createSlice({
   name: "build",
   initialState,
   reducers: {
+    loadBunkers: (state, action) => {
+      state.bunkers = action.payload;
+      state.selected = null;
+    },
     addBunker: (state, action) => {
-      // console.log(action.payload);
-      // console.log(current(state.defaults[action.payload]));
-      const genId = Math.ceil(Math.random() * 1000);
-      state.bunkers = [
-        ...state.bunkers,
-        { ...current(state.defaults[action.payload]), id: genId },
-        {
-          ...current(state.defaults[action.payload]),
-          id: genId, //id: genId * 10,
-          mirror: true,
-        },
-      ];
-      state.selected = genId;
+      if (state.bunkers.length <= 49) {
+        let genId = 0;
+        //console.log("---");
+        do {
+          genId += 1;
+        } while (state.bunkers.find((x) => x.id === genId));
+        state.bunkers = [
+          ...state.bunkers,
+          { ...current(state.defaults[action.payload]), id: genId },
+          {
+            ...current(state.defaults[action.payload]),
+            id: genId,
+            mirror: true,
+          },
+        ];
+        state.selected = genId;
+      }
     },
     deleteBunker: (state, action) => {
       state.bunkers = state.bunkers.filter((b) => b.id !== action.payload);
@@ -205,10 +213,16 @@ export const buildSlice = createSlice({
     resetPOV: (state, action) => {
       state.pov.point = { x: 300, y: 350 };
     },
+    resetField: (state, action) => {
+      state.bunkers = [];
+      state.pov.point = { x: 300, y: 350 };
+      state.selected = null;
+    },
   },
 });
 
 export const {
+  loadBunkers,
   rotateBunker,
   moveBunker,
   addBunker,
@@ -217,6 +231,7 @@ export const {
   setPOVonoff,
   movePOV,
   resetPOV,
+  resetField,
 } = buildSlice.actions;
 
 export default buildSlice.reducer;
