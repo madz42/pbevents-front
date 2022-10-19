@@ -210,6 +210,12 @@ export const buildSlice = createSlice({
         y: state.pov.point.y + action.payload.y,
       };
     },
+    setPOV: (state, action) => {
+      state.pov.point = {
+        x: action.payload.x,
+        y: action.payload.y,
+      };
+    },
     resetPOV: (state, action) => {
       state.pov.point = { x: 300, y: 350 };
     },
@@ -231,6 +237,7 @@ export const {
   setPOVonoff,
   movePOV,
   resetPOV,
+  setPOV,
   resetField,
 } = buildSlice.actions;
 

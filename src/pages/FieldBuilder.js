@@ -15,6 +15,7 @@ import {
   movePOV,
   resetPOV,
   resetField,
+  setPOV,
 } from "../store/build/slice";
 import {
   loadFieldThunk,
@@ -33,9 +34,42 @@ export const FieldBuilder = () => {
   const pov = useSelector(selectPOV);
   const POV_step = 20;
   const route_params = useParams();
-  const navigate = useNavigate();
   const [giveName, setGiveName] = useState("");
   const [zoom, setZoom] = useState({ mag: 1, x: 0, y: -375 });
+  //
+  const [position, setPosition] = useState([
+    {
+      x: 25,
+      y: 25,
+      active: false,
+      offset: {},
+    },
+    {
+      x: 50,
+      y: 50,
+      active: false,
+      offset: {},
+    },
+    {
+      x: 75,
+      y: 75,
+      active: false,
+      offset: {},
+    },
+    {
+      x: 100,
+      y: 100,
+      active: false,
+      offset: {},
+    },
+    {
+      x: 125,
+      y: 125,
+      active: false,
+      offset: {},
+    },
+  ]);
+  //
 
   useEffect(() => {
     if (route_params.id !== undefined) {
@@ -61,6 +95,82 @@ export const FieldBuilder = () => {
       return true;
     }
     return false;
+  };
+
+  const drawPlayers = () => {
+    const handlePointerDown = (e, item) => {
+      const el = e.target;
+      const bbox = e.target.getBoundingClientRect();
+      const x = e.clientX - bbox.left;
+      const y = e.clientY - bbox.top;
+      el.setPointerCapture(e.pointerId);
+      setPosition(
+        position.map((el, index) => {
+          if (index === item) {
+            return { ...el, active: true, offset: { x, y } };
+          } else return el;
+        })
+      );
+    };
+    const handlePointerMove = (e, item) => {
+      const bbox = e.target.getBoundingClientRect();
+      const x = e.clientX - bbox.left;
+      const y = e.clientY - bbox.top;
+      if (position[item].active) {
+        // dispatch(
+        //   setPOV({
+        //     x: position[0].x - (position[0].offset.x - x),
+        //     y: position[0].y - (position[0].offset.y - y),
+        //   })
+        // );
+        setPosition(
+          position.map((el, index) => {
+            if (index === item) {
+              return {
+                ...el,
+                x: el.x - (el.offset.x - x),
+                y: el.y - (el.offset.y - y),
+              };
+            } else return el;
+          })
+        );
+      }
+    };
+    const handlePointerUp = (e, item) => {
+      setPosition(
+        position.map((el, index) => {
+          if (index === item) {
+            return { ...el, active: false };
+          } else return el;
+        })
+      );
+    };
+
+    return (
+      <g>
+        <circle
+          cx={position[0].x}
+          cy={position[0].y}
+          r={8}
+          onPointerDown={(e) => handlePointerDown(e, 0)}
+          onPointerUp={(e) => handlePointerUp(e, 0)}
+          onPointerMove={(e) => handlePointerMove(e, 0)}
+          fill={position[0].active ? "white" : "red"}
+        />
+        <circle
+          cx={position[1].x}
+          cy={position[1].y}
+          r={8}
+          onPointerDown={(e) => handlePointerDown(e, 1)}
+          onPointerUp={(e) => handlePointerUp(e, 1)}
+          onPointerMove={(e) => handlePointerMove(e, 1)}
+          fill={position[1].active ? "white" : "orange"}
+        />
+        <circle cx={75} cy={75} r={8} fill="yellow" />
+        <circle cx={100} cy={100} r={8} fill="blue" />
+        <circle cx={125} cy={125} r={8} fill="purple" />
+      </g>
+    );
   };
 
   const drawPOV = () => {
@@ -238,7 +348,7 @@ export const FieldBuilder = () => {
           <circle
             cx={pov.point.x}
             cy={pov.point.y}
-            r="7"
+            r="1"
             stroke="white"
             fill="red"
             strokeWidth="2"
@@ -815,6 +925,7 @@ export const FieldBuilder = () => {
           {drawBanners()}
           {drawPOV()}
           {bunkers.map((b) => drawBunker(b))}
+          {drawPlayers()}
         </svg>
       </div>
     </div>
