@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   selCurrentBunker,
   selectBunkers,
+  selectModified,
+  selectName,
   selectPOV,
   selectSet,
 } from "../store/build/selectors";
@@ -12,14 +14,18 @@ import {
   deleteBunker,
   setCurrentBunker,
   setPOVonoff,
-  movePOV,
+  setPOVpos,
+  setPOVoffset,
   resetPOV,
   resetField,
-  setPOV,
+  setPOVactive,
+  setBunkerSingle,
+  setBunkerDouble,
+  moveBunker,
+  mimicSave,
 } from "../store/build/slice";
 import {
   loadFieldThunk,
-  moveBunker,
   moveBunkerThunk,
   rotateBunker,
   rotateBunkerThunk,
@@ -27,49 +33,20 @@ import {
 } from "../store/build/thunks";
 
 export const FieldBuilder = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const bunkers = useSelector(selectBunkers);
   const bunkersSet = useSelector(selectSet);
   const currentBunker = useSelector(selCurrentBunker);
-  const dispatch = useDispatch();
   const pov = useSelector(selectPOV);
-  const POV_step = 20;
+  const name = useSelector(selectName);
+  const modified = useSelector(selectModified);
+
   const route_params = useParams();
   const [giveName, setGiveName] = useState("");
   const [zoom, setZoom] = useState({ mag: 1, x: 0, y: -375 });
-  //
-  const [position, setPosition] = useState([
-    {
-      x: 25,
-      y: 25,
-      active: false,
-      offset: {},
-    },
-    {
-      x: 50,
-      y: 50,
-      active: false,
-      offset: {},
-    },
-    {
-      x: 75,
-      y: 75,
-      active: false,
-      offset: {},
-    },
-    {
-      x: 100,
-      y: 100,
-      active: false,
-      offset: {},
-    },
-    {
-      x: 125,
-      y: 125,
-      active: false,
-      offset: {},
-    },
-  ]);
-  //
+  const [shadow, setShadow] = useState(2);
 
   useEffect(() => {
     if (route_params.id !== undefined) {
@@ -77,8 +54,84 @@ export const FieldBuilder = () => {
     }
   }, [dispatch, route_params]);
 
+  const bunkerStick = (direction, id) => {
+    //check position and stick
+    //dispatch movebunkerThunk
+    // const hor = [0, 25, 75, 125, 175, 225, 275, 325, 375];
+    // const ver = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550];
+    // let [dX, dY] = [0, 0];
+    // let [pU, pD, pL, pR] = [0, 0, 0, 0];
+    const bun = bunkers.find((b) => b.id === id && b.mirror === false);
+    // console.log(bun.center);
+    if (direction === "up" || direction === "down") {
+      if (direction === "up") {
+        //up
+        if (bun.center.y > 40) dispatch(moveBunkerThunk(direction, id));
+        //if delete mirror
+        if (bun.center.y > 24 && bun.center.y < 26) {
+          dispatch(moveBunker({ id, x: 0, y: -25 }));
+          dispatch(setBunkerSingle(id));
+          // make dorito simetric
+          if (bun.type === "dorito" || bun.type === "smalldorito") {
+            // +cake
+            if (bun.rotate.angle === 90 || bun.rotate.angle === 270) {
+              dispatch(rotateBunkerThunk(id));
+            }
+          }
+        }
+      } else {
+        //down
+        //check if add mirror
+        if (bun.center.y === 0) {
+          // new condition
+          dispatch(moveBunker({ id, x: 0, y: 25 }));
+          dispatch(setBunkerDouble(id));
+        } else if (bun.center.y < 320) dispatch(moveBunkerThunk(direction, id));
+      }
+    } else {
+      if (direction === "left") {
+        //left
+        if (bun.center.x > 60) dispatch(moveBunkerThunk(direction, id));
+      } else {
+        //right
+        if (bun.center.x < 540) dispatch(moveBunkerThunk(direction, id));
+      }
+    }
+    //pass through nostick
+    // dispatch(moveBunkerThunk(direction, id));
+  };
+
+  const handleRotate = () => {
+    const bun = bunkers.find(
+      (b) => b.id === currentBunker && b.mirror === false
+    );
+    if (
+      bun.center.y === 0 &&
+      (bun.type === "dorito" || bun.type === "smalldorito")
+    ) {
+      dispatch(rotateBunkerThunk(currentBunker));
+    }
+    dispatch(rotateBunkerThunk(currentBunker));
+  };
+
   const handleSave = () => {
     dispatch(saveFieldThunk(bunkers, giveName, bunkers.length));
+    dispatch(mimicSave(giveName));
+    // dispatch(loadFieldsThunk());
+    // navigate("/browse");
+  };
+
+  const handleShadow = (increase) => {
+    // console.log(shadow, increase);
+    if (increase) {
+      if (shadow < 4) {
+        setShadow(shadow + 1);
+      }
+    } else {
+      if (shadow > 1) {
+        setShadow(shadow - 1);
+      }
+    }
   };
 
   const handleLoad = () => {
@@ -104,79 +157,53 @@ export const FieldBuilder = () => {
       const x = e.clientX - bbox.left;
       const y = e.clientY - bbox.top;
       el.setPointerCapture(e.pointerId);
-      setPosition(
-        position.map((el, index) => {
-          if (index === item) {
-            return { ...el, active: true, offset: { x, y } };
-          } else return el;
-        })
-      );
+      dispatch(setPOVoffset({ index: item, x, y }));
     };
     const handlePointerMove = (e, item) => {
       const bbox = e.target.getBoundingClientRect();
       const x = e.clientX - bbox.left;
       const y = e.clientY - bbox.top;
-      if (position[item].active) {
-        // dispatch(
-        //   setPOV({
-        //     x: position[0].x - (position[0].offset.x - x),
-        //     y: position[0].y - (position[0].offset.y - y),
-        //   })
-        // );
-        setPosition(
-          position.map((el, index) => {
-            if (index === item) {
-              return {
-                ...el,
-                x: el.x - (el.offset.x - x),
-                y: el.y - (el.offset.y - y),
-              };
-            } else return el;
+      if (pov[item].active) {
+        dispatch(
+          setPOVpos({
+            index: item,
+            x: pov[item].x - (pov[item].offset.x - x),
+            y: pov[item].y - (pov[item].offset.y - y),
           })
         );
       }
     };
     const handlePointerUp = (e, item) => {
-      setPosition(
-        position.map((el, index) => {
-          if (index === item) {
-            return { ...el, active: false };
-          } else return el;
-        })
+      dispatch(setPOVactive(item));
+    };
+
+    const drawPOVcircle = (i) => {
+      const color = ["red", "orange", "yellow", "blue", "purple"];
+      if (!pov[i].on) return;
+      return (
+        <circle
+          cx={pov[i].x}
+          cy={pov[i].y}
+          r={8}
+          stroke="white"
+          strokeWidth="2"
+          onPointerDown={(e) => handlePointerDown(e, i)}
+          onPointerUp={(e) => handlePointerUp(e, i)}
+          onPointerMove={(e) => handlePointerMove(e, i)}
+          fill={pov[i].active ? "white" : color[i]}
+        />
       );
     };
 
-    return (
-      <g>
-        <circle
-          cx={position[0].x}
-          cy={position[0].y}
-          r={8}
-          onPointerDown={(e) => handlePointerDown(e, 0)}
-          onPointerUp={(e) => handlePointerUp(e, 0)}
-          onPointerMove={(e) => handlePointerMove(e, 0)}
-          fill={position[0].active ? "white" : "red"}
-        />
-        <circle
-          cx={position[1].x}
-          cy={position[1].y}
-          r={8}
-          onPointerDown={(e) => handlePointerDown(e, 1)}
-          onPointerUp={(e) => handlePointerUp(e, 1)}
-          onPointerMove={(e) => handlePointerMove(e, 1)}
-          fill={position[1].active ? "white" : "orange"}
-        />
-        <circle cx={75} cy={75} r={8} fill="yellow" />
-        <circle cx={100} cy={100} r={8} fill="blue" />
-        <circle cx={125} cy={125} r={8} fill="purple" />
-      </g>
-    );
+    return <g>{pov.map((el, index) => drawPOVcircle(index))}</g>;
   };
 
-  const drawPOV = () => {
+  const drawPOV = (index) => {
+    if (!pov[index].on) return;
+    //console.log("DRAW POV", index);
     const generateFence = () => {
       let arr = [];
-      const [px, py] = [pov.point.x, pov.point.y];
+      const [px, py] = [pov[index].x, pov[index].y];
       // console.log("BUNKERS:", bunkers);
       // invert center and edge points
       arr = bunkers.map((b) => {
@@ -293,14 +320,14 @@ export const FieldBuilder = () => {
       // umnozhit na proporciiu
       const arr = fence.map((b) =>
         b.map((p) => {
-          const xx = pov.point.x - p.x;
-          const yy = pov.point.y - p.y;
+          const xx = pov[index].x - p.x;
+          const yy = pov[index].y - p.y;
           // console.log("xx", xx);
           const zz = Math.sqrt(xx * xx + yy * yy);
           const scale = 1000 / zz;
           // console.log("xxx", xxx);
-          const xxx = pov.point.x - xx * scale;
-          const yyy = pov.point.y - yy * scale;
+          const xxx = pov[index].x - xx * scale;
+          const yyy = pov[index].y - yy * scale;
           // const yyy = -yy * xxx + pov.point.y;
           // console.log(yyy);
           return [p, { x: xxx, y: yyy }];
@@ -311,12 +338,12 @@ export const FieldBuilder = () => {
     const castRays = () => {
       const arr = fence.map((b) =>
         b.map((p) => {
-          const xx = pov.point.x - p.x;
-          const yy = pov.point.y - p.y;
+          const xx = pov[index].x - p.x;
+          const yy = pov[index].y - p.y;
           const zz = Math.sqrt(xx * xx + yy * yy);
           const scale = 1000 / zz;
-          const xxx = pov.point.x - xx * scale;
-          const yyy = pov.point.y - yy * scale;
+          const xxx = pov[index].x - xx * scale;
+          const yyy = pov[index].y - yy * scale;
           return drawLine(
             p.x,
             p.y,
@@ -332,41 +359,28 @@ export const FieldBuilder = () => {
     const drawBlindZones = () => {
       const arr = flatShadowPoints();
       return (
-        <clipPath id="cutout">
-          {arr.map((x, index) => (
-            <polygon
-              key={`cut${index}`}
-              points={`${x[0].x},${x[0].y} ${x[1].x},${x[1].y} ${x[3].x},${x[3].y} ${x[2].x},${x[2].y}`}
-            />
-          ))}
-        </clipPath>
-      );
-    };
-    if (pov.on) {
-      return (
         <g>
-          <circle
-            cx={pov.point.x}
-            cy={pov.point.y}
-            r="1"
-            stroke="white"
-            fill="red"
-            strokeWidth="2"
-          />
-          {/* {castRays()} */}
-          {drawBlindZones()}
+          <clipPath id={`cutout${index}`}>
+            {arr.map((x, i) => (
+              <polygon
+                key={`cut${i}`}
+                points={`${x[0].x},${x[0].y} ${x[1].x},${x[1].y} ${x[3].x},${x[3].y} ${x[2].x},${x[2].y}`}
+              />
+            ))}
+          </clipPath>
           <rect
             x="0"
             y="-375"
             width="600"
             height="750"
-            fill="black"
-            clipPath="url(#cutout)"
-            fillOpacity="25%"
+            fill={pov[index].active ? "white" : "black"}
+            clipPath={`url(#cutout${index})`}
+            fillOpacity={shadow / 10}
           />
         </g>
       );
-    }
+    };
+    return <g>{drawBlindZones()}</g>;
   };
 
   const countBunkers = (type) => {
@@ -471,7 +485,11 @@ export const FieldBuilder = () => {
     }
 
     const handleClick = () => {
-      dispatch(setCurrentBunker(id));
+      if (currentBunker === id) {
+        dispatch(setCurrentBunker(null));
+      } else {
+        dispatch(setCurrentBunker(id));
+      }
     };
 
     const checkBounds = () => {
@@ -494,7 +512,7 @@ export const FieldBuilder = () => {
     const setColor = () => {
       // check bounds
       if (checkBounds()) {
-        return "red";
+        //return "red"; bug with no red CAN
       }
       if (currentBunker === id) {
         return mirror ? "orange" : "white";
@@ -646,287 +664,318 @@ export const FieldBuilder = () => {
     }
   };
 
+  const drawSaveField = () => {
+    if (!modified) return;
+    return (
+      <div style={{ padding: "1.2em" }}>
+        <input type="text" onChange={(e) => setGiveName(e.target.value)} />
+        <button onClick={handleSave} disabled={!allowSave()}>
+          SAVE
+        </button>
+      </div>
+    );
+  };
+
+  // OUTPUT
+
   return (
-    <div style={{ display: "flex", margin: "2em" }}>
-      <div style={{ width: "25%" }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <button
-            style={{ width: "5em", height: "5em" }}
-            disabled={!currentBunker}
-            onClick={() => dispatch(moveBunkerThunk("up", currentBunker))}
-          >
-            UP
-          </button>
-          <div>
-            <button
-              style={{ width: "5em", height: "5em" }}
-              disabled={!currentBunker}
-              onClick={() => dispatch(moveBunkerThunk("left", currentBunker))}
-            >
-              LEFT
-            </button>
-            <button
-              style={{ width: "5em", height: "5em" }}
-              disabled={!currentBunker}
-              onClick={() => dispatch(rotateBunkerThunk(currentBunker))}
-            >
-              Rotate
-            </button>
-            <button
-              style={{ width: "5em", height: "5em" }}
-              disabled={!currentBunker}
-              onClick={() => dispatch(moveBunkerThunk("right", currentBunker))}
-            >
-              RIGHT
-            </button>
-          </div>
-          <button
-            style={{ width: "5em", height: "5em" }}
-            disabled={!currentBunker}
-            onClick={() => dispatch(moveBunkerThunk("down", currentBunker))}
-          >
-            DOWN
-          </button>
-        </div>
+    <div style={{ margin: "1em", minWidth: "1200px" }}>
+      <div style={{ display: "flex" }}>
         <div>
-          <button
-            disabled={currentBunker ? false : true}
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
-          {`  Total: ${bunkers.length}`}
+          <h4>
+            Name: {name}
+            <span style={{ color: "red" }}>
+              {modified ? " [modified]" : ""}
+            </span>
+          </h4>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <br />
-          <div>
-            {`${countBunkers("temple")}/${bunkersSet.temple} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("temple"))}
-            >
-              Temple
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("maya")}/${bunkersSet.maya} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("maya"))}
-            >
-              Maya
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("can")}/${bunkersSet.can} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("can"))}
-            >
-              Can
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("dorito")}/${bunkersSet.dorito} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("dorito"))}
-            >
-              Dorito
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("smalldorito")}/${bunkersSet.smalldorito} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("smalldorito"))}
-            >
-              Sm Dorito
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("tree")}/${bunkersSet.tree} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("tree"))}
-            >
-              Tree
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("snake")}/${bunkersSet.snake} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("snake"))}
-            >
-              Snake
-            </button>
-          </div>
-          <div>
-            {`${countBunkers("giantbrick")}/${bunkersSet.giantbrick} `}
-            <button
-              style={{ width: "7em" }}
-              onClick={() => dispatch(addBunker("giantbrick"))}
-            >
-              Giant Brick
-            </button>
-          </div>
-        </div>
-        <button onClick={() => dispatch(setPOVonoff())}>POV</button>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: -POV_step, y: -POV_step }))}
-            >
-              UL
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: 0, y: -POV_step }))}
-            >
-              U
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: POV_step, y: -POV_step }))}
-            >
-              UR
-            </button>
-          </div>{" "}
-          <div>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: -POV_step, y: 0 }))}
-            >
-              L
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(resetPOV())}
-            >
-              o
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: POV_step, y: 0 }))}
-            >
-              R
-            </button>
-          </div>
-          <div>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: -POV_step, y: POV_step }))}
-            >
-              DL
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: 0, y: POV_step }))}
-            >
-              D
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: POV_step, y: POV_step }))}
-            >
-              DR
-            </button>
-          </div>
-        </div>
-        <div>
-          {`Zoom: `}
-          <button onClick={() => setZoom({ mag: 2, x: 0, y: -375 })}>
-            x0.5
-          </button>
-          <button onClick={() => setZoom({ mag: 1, x: 0, y: -375 })}>
-            x1.0
-          </button>
-          <button onClick={() => setZoom({ mag: 0.5, x: 0, y: -375 })}>
-            x2.0
-          </button>
-          {` - `}
-          <button
-            onClick={() =>
-              setZoom({ mag: zoom.mag, x: zoom.x - 150, y: zoom.y })
-            }
-          >
-            {"<"}
-          </button>
-          <button
-            onClick={() => setZoom({ mag: zoom.mag, x: 0, y: zoom.y - 187.5 })}
-          >
-            {"^"}
-          </button>
-          <button
-            onClick={() => setZoom({ mag: zoom.mag, x: 0, y: zoom.y + 187.5 })}
-          >
-            {"v"}
-          </button>
-          <button
-            onClick={() =>
-              setZoom({ mag: zoom.mag, x: zoom.x + 150, y: zoom.y })
-            }
-          >
-            {">"}
-          </button>
-        </div>
-        <div>
+        {drawSaveField()}
+        <div style={{ padding: "1.2em" }}>
           <button onClick={handleNew}>NEW FIELD</button>
-          <input type="text" onChange={(e) => setGiveName(e.target.value)} />
-          <button onClick={handleSave} disabled={!allowSave()}>
-            SAVE
-          </button>
         </div>
       </div>
-      <div style={{ width: "75%" }}>
-        <svg
-          viewBox={`${zoom.x} ${zoom.y} ${600 * zoom.mag} ${750 * zoom.mag}`}
-          width={600}
-          height={750}
-          version="1.1"
-        >
-          {/* <svg
-          viewBox="-200 -750 1200 1500"
-          width={600}
-          height={750}
-          version="1.1"
-        > */}
-          {drawField()}
-          {buildGrid()}
-          {drawBanners()}
-          {drawPOV()}
-          {bunkers.map((b) => drawBunker(b))}
-          {drawPlayers()}
-        </svg>
+      <div style={{ display: "flex" }}>
+        <div style={{ width: "25%" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <button
+              className="move"
+              disabled={!currentBunker}
+              onClick={() => bunkerStick("up", currentBunker)}
+            >
+              UP
+            </button>
+            <div>
+              <button
+                className="move"
+                disabled={!currentBunker}
+                onClick={() => bunkerStick("left", currentBunker)}
+              >
+                LEFT
+              </button>
+              <button
+                className="move"
+                disabled={!currentBunker}
+                onClick={handleRotate}
+              >
+                Rotate
+              </button>
+              <button
+                className="move"
+                disabled={!currentBunker}
+                onClick={() => bunkerStick("right", currentBunker)}
+              >
+                RIGHT
+              </button>
+            </div>
+            <button
+              className="move"
+              disabled={!currentBunker}
+              onClick={() => bunkerStick("down", currentBunker)}
+            >
+              DOWN
+            </button>
+            <button
+              className="delete"
+              disabled={currentBunker ? false : true}
+              onClick={handleDelete}
+            >
+              Delete selected bunker
+            </button>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <p>Total bunkers: {bunkers.length}</p>
+            <div style={{ display: "flex", flexDirection: "row" }}>
+              <div style={{ margin: "0.5em" }}>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("temple"))}
+                  >
+                    Temple
+                  </button>
+                  {`${countBunkers("temple")}/${bunkersSet.temple} `}
+                </div>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("maya"))}
+                  >
+                    Maya
+                  </button>
+                  {`${countBunkers("maya")}/${bunkersSet.maya} `}
+                </div>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("can"))}
+                  >
+                    Can
+                  </button>
+                  {`${countBunkers("can")}/${bunkersSet.can} `}
+                </div>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("dorito"))}
+                  >
+                    Dorito
+                  </button>
+                  {`${countBunkers("dorito")}/${bunkersSet.dorito} `}
+                </div>
+              </div>
+              <div style={{ margin: "0.5em" }}>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("smalldorito"))}
+                  >
+                    Sm Dorito
+                  </button>
+                  {`${countBunkers("smalldorito")}/${bunkersSet.smalldorito} `}
+                </div>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("tree"))}
+                  >
+                    Tree
+                  </button>
+                  {`${countBunkers("tree")}/${bunkersSet.tree} `}
+                </div>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("snake"))}
+                  >
+                    Snake
+                  </button>
+                  {`${countBunkers("snake")}/${bunkersSet.snake} `}
+                </div>
+                <div>
+                  <button
+                    className="bunker"
+                    onClick={() => dispatch(addBunker("giantbrick"))}
+                  >
+                    Giant Brick
+                  </button>
+                  {`${countBunkers("giantbrick")}/${bunkersSet.giantbrick} `}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <p>POV:</p>
+            <div>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "red",
+                }}
+                onClick={() => dispatch(setPOVonoff(0))}
+              >
+                {pov[0].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "orange",
+                }}
+                onClick={() => dispatch(setPOVonoff(1))}
+              >
+                {pov[1].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{ backgroundColor: "yellow" }}
+                onClick={() => dispatch(setPOVonoff(2))}
+              >
+                {pov[2].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "blue",
+                }}
+                onClick={() => dispatch(setPOVonoff(3))}
+              >
+                {pov[3].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "purple",
+                }}
+                onClick={() => dispatch(setPOVonoff(4))}
+              >
+                {pov[4].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "white",
+                }}
+                onClick={() => dispatch(resetPOV())}
+              >
+                R
+              </button>
+            </div>
+            <div>
+              <button
+                className="shadow-light"
+                onClick={() => handleShadow(false)}
+              >
+                lighter
+              </button>
+              <button
+                className="shadow-dark"
+                onClick={() => handleShadow(true)}
+              >
+                darker
+              </button>
+            </div>
+          </div>
+          {/* <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          ></div>
+          <div>
+            {`Zoom: `}
+            <button onClick={() => setZoom({ mag: 2, x: 0, y: -375 })}>
+              x0.5
+            </button>
+            <button onClick={() => setZoom({ mag: 1, x: 0, y: -375 })}>
+              x1.0
+            </button>
+            <button onClick={() => setZoom({ mag: 0.5, x: 0, y: -375 })}>
+              x2.0
+            </button>
+            {` - `}
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x - 75, y: zoom.y })
+              }
+            >
+              {"<"}
+            </button>
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x, y: zoom.y - 93.75 })
+              }
+            >
+              {"^"}
+            </button>
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x, y: zoom.y + 93.75 })
+              }
+            >
+              {"v"}
+            </button>
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x + 75, y: zoom.y })
+              }
+            >
+              {">"}
+            </button>
+          </div> */}
+        </div>
+        <div style={{ width: "75%" }}>
+          <svg
+            viewBox={`${zoom.x} ${zoom.y} ${600 * zoom.mag} ${750 * zoom.mag}`}
+            width={600}
+            height={750}
+            version="1.1"
+          >
+            {drawField()}
+            {buildGrid()}
+            {drawBanners()}
+            {pov.map((el, index) => drawPOV(index))}
+            {bunkers.map((b) => drawBunker(b))}
+            {drawPlayers()}
+          </svg>
+        </div>
       </div>
     </div>
   );

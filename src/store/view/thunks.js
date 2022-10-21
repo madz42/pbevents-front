@@ -28,9 +28,9 @@ export const loadFieldsThunk = () => {
       const incoming = await axios.get(`${apiUrl}/field/all`);
       // console.log(incoming.data);
       dispatch(loadFields(incoming.data));
-      dispatch(
-        showMessageWithTimeout("success", false, "Fields loaded!", 3000)
-      );
+      // dispatch(
+      //   showMessageWithTimeout("success", false, "Fields loaded!", 3000)
+      // );
     } catch (error) {
       if (error.response) {
         console.log(error.response.message);
@@ -53,9 +53,9 @@ export const viewFieldThunk = (id) => {
       dispatch(
         viewField({ data: incoming.data.data, name: incoming.data.name })
       );
-      dispatch(
-        showMessageWithTimeout("success", false, "Fields loaded!", 3000)
-      );
+      // dispatch(
+      //   showMessageWithTimeout("success", false, "Fields loaded!", 3000)
+      // );
     } catch (error) {
       if (error.response) {
         console.log(error.response.message);

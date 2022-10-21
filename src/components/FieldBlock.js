@@ -7,7 +7,7 @@ export const FieldBlock = (props) => {
   //   console.log("preview image", props.item.id, props.item.preview);
 
   return (
-    <div style={{ padding: "0.5em", width: "20em" }}>
+    <div className="field-block">
       <p>{props.item.name}</p>
       <div style={{ display: "flex", flexDirection: "row" }}>
         <div>
@@ -27,14 +27,27 @@ export const FieldBlock = (props) => {
             {props.item.createdAt.split("T")[0]}
           </p>
 
-          <button onClick={() => navigate(`/view/${props.item.id}`)}>
+          <button
+            className="bunker"
+            onClick={() => navigate(`/view/${props.item.id}`)}
+          >
             Viewer
           </button>
-          <br />
-          <button>Planner</button>
-          <br />
-          <button onClick={() => navigate(`/build/${props.item.id}`)}>
+
+          {/* <button >Planner</button>
+          <br /> */}
+          <button
+            className="bunker"
+            onClick={() => navigate(`/build/${props.item.id}`)}
+          >
             Builder
+          </button>
+          <br />
+          <button
+            className="bunker"
+            onClick={() => navigate(`/share/${props.item.id}`)}
+          >
+            Share
           </button>
         </div>
       </div>

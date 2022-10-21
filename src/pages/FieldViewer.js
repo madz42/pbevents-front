@@ -1,9 +1,12 @@
-import { useEffect } from "react";
+import { apiUrl } from "../config/constants";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   selCurrentBunker,
   selectBunkers,
+  selectModified,
+  selectName,
   selectPOV,
   selectSet,
 } from "../store/build/selectors";
@@ -12,30 +15,41 @@ import {
   deleteBunker,
   setCurrentBunker,
   setPOVonoff,
-  movePOV,
+  setPOVpos,
+  setPOVoffset,
   resetPOV,
+  resetField,
+  setPOVactive,
+  setBunkerSingle,
+  setBunkerDouble,
+  moveBunker,
+  mimicSave,
 } from "../store/build/slice";
 import {
   loadFieldThunk,
-  moveBunker,
   moveBunkerThunk,
   rotateBunker,
   rotateBunkerThunk,
   saveFieldThunk,
 } from "../store/build/thunks";
-import { selectViewField } from "../store/view/selectors";
+import { selectViewField, selectViewName } from "../store/view/selectors";
 import { viewFieldThunk } from "../store/view/thunks";
 
 export const FieldViewer = () => {
-  // const route_params = useParams();
-  // console.log("ROUTE:", route_params.id);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const bunkers = useSelector(selectViewField);
   const bunkersSet = useSelector(selectSet);
   const currentBunker = useSelector(selCurrentBunker);
-  const dispatch = useDispatch();
   const pov = useSelector(selectPOV);
-  const POV_step = 20;
+  const name = useSelector(selectViewName);
+  const modified = useSelector(selectModified);
+
   const route_params = useParams();
+  const [giveName, setGiveName] = useState("");
+  const [zoom, setZoom] = useState({ mag: 1, x: 0, y: -375 });
+  const [shadow, setShadow] = useState(2);
 
   useEffect(() => {
     if (route_params.id !== undefined) {
@@ -44,7 +58,23 @@ export const FieldViewer = () => {
   }, [dispatch, route_params]);
 
   const handleSave = () => {
-    dispatch(saveFieldThunk(bunkers, "somename"));
+    dispatch(saveFieldThunk(bunkers, giveName, bunkers.length));
+    dispatch(mimicSave(giveName));
+    // dispatch(loadFieldsThunk());
+    // navigate("/browse");
+  };
+
+  const handleShadow = (increase) => {
+    // console.log(shadow, increase);
+    if (increase) {
+      if (shadow < 4) {
+        setShadow(shadow + 1);
+      }
+    } else {
+      if (shadow > 1) {
+        setShadow(shadow - 1);
+      }
+    }
   };
 
   const handleLoad = () => {
@@ -52,10 +82,71 @@ export const FieldViewer = () => {
     dispatch(loadFieldThunk(1));
   };
 
-  const drawPOV = () => {
+  const handleNew = () => {
+    dispatch(resetField());
+  };
+
+  const allowSave = () => {
+    if (bunkers.length > 0 && giveName.length >= 8) {
+      return true;
+    }
+    return false;
+  };
+
+  const drawPlayers = () => {
+    const handlePointerDown = (e, item) => {
+      const el = e.target;
+      const bbox = e.target.getBoundingClientRect();
+      const x = e.clientX - bbox.left;
+      const y = e.clientY - bbox.top;
+      el.setPointerCapture(e.pointerId);
+      dispatch(setPOVoffset({ index: item, x, y }));
+    };
+    const handlePointerMove = (e, item) => {
+      const bbox = e.target.getBoundingClientRect();
+      const x = e.clientX - bbox.left;
+      const y = e.clientY - bbox.top;
+      if (pov[item].active) {
+        dispatch(
+          setPOVpos({
+            index: item,
+            x: pov[item].x - (pov[item].offset.x - x),
+            y: pov[item].y - (pov[item].offset.y - y),
+          })
+        );
+      }
+    };
+    const handlePointerUp = (e, item) => {
+      dispatch(setPOVactive(item));
+    };
+
+    const drawPOVcircle = (i) => {
+      const color = ["red", "orange", "yellow", "blue", "purple"];
+      if (!pov[i].on) return;
+      return (
+        <circle
+          cx={pov[i].x}
+          cy={pov[i].y}
+          r={8}
+          stroke="white"
+          strokeWidth="2"
+          onPointerDown={(e) => handlePointerDown(e, i)}
+          onPointerUp={(e) => handlePointerUp(e, i)}
+          onPointerMove={(e) => handlePointerMove(e, i)}
+          fill={pov[i].active ? "white" : color[i]}
+        />
+      );
+    };
+
+    return <g>{pov.map((el, index) => drawPOVcircle(index))}</g>;
+  };
+
+  const drawPOV = (index) => {
+    if (!pov[index].on) return;
+    //console.log("DRAW POV", index);
     const generateFence = () => {
       let arr = [];
-      const [px, py] = [pov.point.x, pov.point.y];
+      const [px, py] = [pov[index].x, pov[index].y];
       // console.log("BUNKERS:", bunkers);
       // invert center and edge points
       arr = bunkers.map((b) => {
@@ -172,14 +263,14 @@ export const FieldViewer = () => {
       // umnozhit na proporciiu
       const arr = fence.map((b) =>
         b.map((p) => {
-          const xx = pov.point.x - p.x;
-          const yy = pov.point.y - p.y;
+          const xx = pov[index].x - p.x;
+          const yy = pov[index].y - p.y;
           // console.log("xx", xx);
           const zz = Math.sqrt(xx * xx + yy * yy);
           const scale = 1000 / zz;
           // console.log("xxx", xxx);
-          const xxx = pov.point.x - xx * scale;
-          const yyy = pov.point.y - yy * scale;
+          const xxx = pov[index].x - xx * scale;
+          const yyy = pov[index].y - yy * scale;
           // const yyy = -yy * xxx + pov.point.y;
           // console.log(yyy);
           return [p, { x: xxx, y: yyy }];
@@ -190,12 +281,12 @@ export const FieldViewer = () => {
     const castRays = () => {
       const arr = fence.map((b) =>
         b.map((p) => {
-          const xx = pov.point.x - p.x;
-          const yy = pov.point.y - p.y;
+          const xx = pov[index].x - p.x;
+          const yy = pov[index].y - p.y;
           const zz = Math.sqrt(xx * xx + yy * yy);
           const scale = 1000 / zz;
-          const xxx = pov.point.x - xx * scale;
-          const yyy = pov.point.y - yy * scale;
+          const xxx = pov[index].x - xx * scale;
+          const yyy = pov[index].y - yy * scale;
           return drawLine(
             p.x,
             p.y,
@@ -211,46 +302,28 @@ export const FieldViewer = () => {
     const drawBlindZones = () => {
       const arr = flatShadowPoints();
       return (
-        <clipPath id="cutout">
-          {arr.map((x, index) => (
-            <polygon
-              key={`cut${index}`}
-              points={`${x[0].x},${x[0].y} ${x[1].x},${x[1].y} ${x[3].x},${x[3].y} ${x[2].x},${x[2].y}`}
-            />
-          ))}
-        </clipPath>
-      );
-    };
-    if (pov.on) {
-      return (
         <g>
-          <circle
-            cx={pov.point.x}
-            cy={pov.point.y}
-            r="7"
-            stroke="white"
-            fill="red"
-            strokeWidth="2"
-          />
-          {/* {castRays()} */}
-          {drawBlindZones()}
+          <clipPath id={`cutout${index}`}>
+            {arr.map((x, i) => (
+              <polygon
+                key={`cut${i}`}
+                points={`${x[0].x},${x[0].y} ${x[1].x},${x[1].y} ${x[3].x},${x[3].y} ${x[2].x},${x[2].y}`}
+              />
+            ))}
+          </clipPath>
           <rect
             x="0"
             y="-375"
             width="600"
             height="750"
-            fill="black"
-            clipPath="url(#cutout)"
-            fillOpacity="25%"
+            fill={pov[index].active ? "white" : "black"}
+            clipPath={`url(#cutout${index})`}
+            fillOpacity={shadow / 10}
           />
         </g>
       );
-    }
-  };
-
-  const countBunkers = (type) => {
-    const total = bunkers.filter((b) => b.type === type);
-    return total.length;
+    };
+    return <g>{drawBlindZones()}</g>;
   };
 
   const drawField = () => {
@@ -333,10 +406,6 @@ export const FieldViewer = () => {
     );
   };
 
-  const handleDelete = () => {
-    dispatch(deleteBunker(currentBunker));
-  };
-
   const drawBunker = (item) => {
     // const { id, type, set, single, center, length, width, rotation } = item;
     const { id, type, mirror, dimentions } = item;
@@ -350,7 +419,11 @@ export const FieldViewer = () => {
     }
 
     const handleClick = () => {
-      dispatch(setCurrentBunker(id));
+      if (currentBunker === id) {
+        dispatch(setCurrentBunker(null));
+      } else {
+        dispatch(setCurrentBunker(id));
+      }
     };
 
     const checkBounds = () => {
@@ -373,7 +446,7 @@ export const FieldViewer = () => {
     const setColor = () => {
       // check bounds
       if (checkBounds()) {
-        return "red";
+        //return "red"; bug with no red CAN
       }
       if (currentBunker === id) {
         return mirror ? "orange" : "white";
@@ -525,115 +598,216 @@ export const FieldViewer = () => {
     }
   };
 
-  return (
-    <div style={{ display: "flex", margin: "2em" }}>
-      <div style={{ width: "25%" }}>
-        <button onClick={() => dispatch(setPOVonoff())}>POV</button>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: -POV_step, y: -POV_step }))}
-            >
-              UL
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: 0, y: -POV_step }))}
-            >
-              U
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: POV_step, y: -POV_step }))}
-            >
-              UR
-            </button>
-          </div>{" "}
-          <div>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: -POV_step, y: 0 }))}
-            >
-              L
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(resetPOV())}
-            >
-              o
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: POV_step, y: 0 }))}
-            >
-              R
-            </button>
-          </div>
-          <div>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: -POV_step, y: POV_step }))}
-            >
-              DL
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: 0, y: POV_step }))}
-            >
-              D
-            </button>
-            <button
-              style={{ width: "3em", height: "3em" }}
-              disabled={!pov.on}
-              onClick={() => dispatch(movePOV({ x: POV_step, y: POV_step }))}
-            >
-              DR
-            </button>
-          </div>
-        </div>
-        <div>
-          {`Zoom: `}
-          <button>x0.5</button>
-          <button>x1.0</button>
-          <button>x2.0</button>
-          {` - `}
-          <button>^</button>
-          <button>v</button>
-        </div>
-        <div>
-          <button onClick={handleLoad}>LOAD</button>
-          <button onClick={handleSave}>SAVE</button>
-        </div>
+  const drawSaveField = () => {
+    if (!modified) return;
+    return (
+      <div style={{ padding: "1.2em" }}>
+        <input type="text" onChange={(e) => setGiveName(e.target.value)} />
+        <button onClick={handleSave} disabled={!allowSave()}>
+          SAVE
+        </button>
       </div>
-      <div style={{ width: "75%" }}>
-        <svg viewBox="0 -375 600 750" width={600} height={750} version="1.1">
-          {/* <svg
-          viewBox="-200 -750 1200 1500"
-          width={600}
-          height={750}
-          version="1.1"
-        > */}
-          {drawField()}
-          {buildGrid()}
-          {drawBanners()}
-          {drawPOV()}
-          {bunkers.map((b) => drawBunker(b))}
-        </svg>
+    );
+  };
+
+  // OUTPUT
+
+  return (
+    <div style={{ margin: "1em", minWidth: "1200px" }}>
+      <div style={{ display: "flex" }}>
+        <div>
+          <h4>Name: {name}</h4>
+        </div>
+        {/* {drawSaveField()}
+        <div style={{ padding: "1.2em" }}>
+          <button onClick={handleNew}>NEW FIELD</button>
+        </div> */}
+      </div>
+      <div style={{ display: "flex" }}>
+        <div style={{ width: "25%" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <button
+              className="share"
+              disabled={!route_params.id}
+              onClick={() => navigate(`/share/${route_params.id}`)}
+            >
+              SHARE this layout
+            </button>
+            <button
+              className="share"
+              disabled={!route_params.id}
+              onClick={() =>
+                (window.location.href = `${apiUrl}/field/svg/${route_params.id}`)
+              }
+            >
+              Export SVG file
+            </button>
+            <button
+              className="share"
+              disabled={!route_params.id}
+              onClick={() =>
+                (window.location.href = `${apiUrl}/field/jpg/${route_params.id}`)
+              }
+            >
+              Export JPG file
+            </button>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            {/* 222 */}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <p>POV:</p>
+            <div>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "red",
+                }}
+                onClick={() => dispatch(setPOVonoff(0))}
+              >
+                {pov[0].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "orange",
+                }}
+                onClick={() => dispatch(setPOVonoff(1))}
+              >
+                {pov[1].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{ backgroundColor: "yellow" }}
+                onClick={() => dispatch(setPOVonoff(2))}
+              >
+                {pov[2].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "blue",
+                }}
+                onClick={() => dispatch(setPOVonoff(3))}
+              >
+                {pov[3].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "purple",
+                }}
+                onClick={() => dispatch(setPOVonoff(4))}
+              >
+                {pov[4].on ? "O" : "I"}
+              </button>
+              <button
+                className="pov"
+                style={{
+                  backgroundColor: "white",
+                }}
+                onClick={() => dispatch(resetPOV())}
+              >
+                R
+              </button>
+            </div>
+            <div>
+              <button
+                className="shadow-light"
+                onClick={() => handleShadow(false)}
+              >
+                lighter
+              </button>
+              <button
+                className="shadow-dark"
+                onClick={() => handleShadow(true)}
+              >
+                darker
+              </button>
+            </div>
+          </div>
+          {/* <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          ></div>
+          <div>
+            {`Zoom: `}
+            <button onClick={() => setZoom({ mag: 2, x: 0, y: -375 })}>
+              x0.5
+            </button>
+            <button onClick={() => setZoom({ mag: 1, x: 0, y: -375 })}>
+              x1.0
+            </button>
+            <button onClick={() => setZoom({ mag: 0.5, x: 0, y: -375 })}>
+              x2.0
+            </button>
+            {` - `}
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x - 75, y: zoom.y })
+              }
+            >
+              {"<"}
+            </button>
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x, y: zoom.y - 93.75 })
+              }
+            >
+              {"^"}
+            </button>
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x, y: zoom.y + 93.75 })
+              }
+            >
+              {"v"}
+            </button>
+            <button
+              onClick={() =>
+                setZoom({ mag: zoom.mag, x: zoom.x + 75, y: zoom.y })
+              }
+            >
+              {">"}
+            </button>
+          </div> */}
+        </div>
+        <div style={{ width: "75%" }}>
+          <svg
+            viewBox={`${zoom.x} ${zoom.y} ${600 * zoom.mag} ${750 * zoom.mag}`}
+            width={600}
+            height={750}
+            version="1.1"
+          >
+            {drawField()}
+            {buildGrid()}
+            {drawBanners()}
+            {pov.map((el, index) => drawPOV(index))}
+            {bunkers.map((b) => drawBunker(b))}
+            {drawPlayers()}
+          </svg>
+        </div>
       </div>
     </div>
   );

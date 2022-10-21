@@ -2,6 +2,7 @@ import axios from "axios";
 import { apiUrl } from "../../config/constants";
 import { moveBunker, rotateBunker, loadBunkers } from "./slice";
 import { showMessageWithTimeout } from "../appState/thunks";
+const MOVE_STEP = 25;
 
 export const saveFieldThunk = (bunkers, name, total) => {
   return async (dispatch, getState) => {
@@ -34,8 +35,8 @@ export const loadFieldThunk = (id) => {
   return async (dispatch, getState) => {
     try {
       const incoming = await axios.get(`${apiUrl}/field/id/${id}`);
-      dispatch(loadBunkers(incoming.data.data));
-      dispatch(showMessageWithTimeout("success", false, "Field loaded!", 3000));
+      dispatch(loadBunkers(incoming.data));
+      // dispatch(showMessageWithTimeout("success", false, "Field loaded!", 3000));
     } catch (error) {
       if (error.response) {
         console.log(error.response.message);
@@ -56,16 +57,16 @@ export const moveBunkerThunk = (direction, id) => {
     // console.log(direction, id);
     switch (direction) {
       case "left":
-        dispatch(moveBunker({ id, x: -25, y: 0 }));
+        dispatch(moveBunker({ id, x: -MOVE_STEP, y: 0 }));
         break;
       case "right":
-        dispatch(moveBunker({ id, x: 25, y: 0 }));
+        dispatch(moveBunker({ id, x: MOVE_STEP, y: 0 }));
         break;
       case "up":
-        dispatch(moveBunker({ id, x: 0, y: -25 }));
+        dispatch(moveBunker({ id, x: 0, y: -MOVE_STEP }));
         break;
       case "down":
-        dispatch(moveBunker({ id, x: 0, y: 25 }));
+        dispatch(moveBunker({ id, x: 0, y: MOVE_STEP }));
         break;
 
       default:

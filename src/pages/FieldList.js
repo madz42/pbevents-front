@@ -18,11 +18,15 @@ export const FieldList = () => {
 
   return (
     <Container>
-      <h3>Fields List:</h3>
-      <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
-        {fields.map((x) => (
-          <FieldBlock key={x.id} item={x} />
-        ))}
+      <div style={{ minWidth: "1200px" }}>
+        <h3>Fields List:</h3>
+        <div
+          style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}
+        >
+          {fields.map((x) => (
+            <FieldBlock key={x.id} item={x} />
+          ))}
+        </div>
       </div>
     </Container>
   );

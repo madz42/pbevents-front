@@ -18,7 +18,9 @@ export const Homepage = () => {
   if (intro) {
     return (
       <Container>
-        <img onClick={() => dispatch(loadIntroThunk())} src={intro} alt="" />
+        <div style={{ textAlign: "center" }}>
+          <img onClick={() => dispatch(loadIntroThunk())} src={intro} alt="" />
+        </div>
       </Container>
     );
   } else {

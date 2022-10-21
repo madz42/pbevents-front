@@ -1,4 +1,5 @@
 body {
+  background-color: #000000;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
@@ -13,9 +14,129 @@ code {
 }
 
 /* debug vvv */
-
 div {
   border: solid 1px red;
 }
-
 /* debug ^^^ */
+
+button.bunker {
+  background-color: white;
+  height: 2em;
+  width: 7em;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 0.3em;
+}
+
+button.bunker:hover {
+  background-color: yellow;
+}
+button.bunker:hover:active {
+  background-color: black;
+  color: yellow;
+}
+
+button.shadow-light {
+  background-color: lightgray;
+  height: 2em;
+  width: 5em;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 0.3em;
+}
+button.shadow-light:hover {
+  background-color: white;
+}
+
+button.shadow-dark {
+  background-color: gray;
+  color: white;
+  height: 2em;
+  width: 5em;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 0.3em;
+}
+button.shadow-dark:hover {
+  background-color: black;
+}
+
+button.pov {
+  height: 3em;
+  width: 3em;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 25%;
+}
+button.pov:hover {
+  border: 2px solid gray;
+}
+
+button.move {
+  width: 5em;
+  height: 5em;
+  background-color: yellow;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 0.3em;
+}
+button.move:disabled {
+  background-color: lightgray;
+}
+button.move:hover:enabled {
+  background-color: white;
+}
+button.move:active:enabled {
+  background-color: black;
+  color: white;
+}
+
+button.delete {
+  background-color: red;
+  color: black;
+  height: 3em;
+  width: 13em;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 0.3em;
+}
+button.delete:disabled {
+  background-color: lightgray;
+  color: darkgray;
+}
+
+button.delete:hover:enabled {
+  background-color: orange;
+}
+button.delete:active:enabled {
+  background-color: white;
+  color: black;
+}
+
+button.share {
+  background-color: white;
+  height: 3em;
+  width: 12em;
+  border: 2px solid #000000;
+  margin: 0.2em;
+  border-radius: 0.3em;
+}
+
+button.share:hover:enabled {
+  background-color: yellow;
+}
+button.share:hover:active:enabled {
+  background-color: black;
+  color: yellow;
+}
+
+div.field-block {
+  padding: 0.5em;
+  width: 20em;
+  border: 2px solid lightgray;
+  margin: 0.5em;
+}
+
+div.field-block:hover {
+  transform: scale(1.025);
+}
